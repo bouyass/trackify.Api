@@ -8,15 +8,26 @@ namespace Trackify.Api.Data
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         public DbSet<User> Users => Set<User>();
+        public DbSet<ExternalProvider> ExternalProviders => Set<ExternalProvider>();
         public DbSet<Content> Contents => Set<Content>();
         public DbSet<UserPreference> UserPreferences => Set<UserPreference>();
         public DbSet<UpdateLog> Updates => Set<UpdateLog>();
         public DbSet<UserUpdate> UserUpdates => Set<UserUpdate>();
         public DbSet<Category> Categories => Set<Category>();
-
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<ExternalProvider>()
+                .HasOne(p => p.User)
+                .WithMany(u => u.ExternalProviders)
+                .HasForeignKey(p => p.UserId);
+
+            modelBuilder.Entity<RefreshToken>()
+               .HasOne(r => r.User)
+               .WithMany(u => u.RefreshTokens)
+               .HasForeignKey(r => r.UserId);
 
             // Relation User <-> UserUpdate
             modelBuilder.Entity<UserUpdate>()

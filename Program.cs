@@ -1,6 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Trackify.Api.Data;
 using Trackify.Api.Endpoints;
+using Trackify.Api.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +16,24 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddScoped<IJwtService, JwtService>();
+
+builder.Services.AddAuthentication()
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]))
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
