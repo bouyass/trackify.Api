@@ -3,10 +3,9 @@
     public class UpdateLog
     {
         public Guid Id { get; set; } = Guid.NewGuid();
-        public Guid ItemId { get; set; }
+        public Guid ContentId { get; set; }
+        public Content? Content { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        // Navigation
-        public Content? Item { get; set; }
+        public ICollection<UserUpdate> UserUpdates { get; set; } = new List<UserUpdate>();
     }
 }
