@@ -35,6 +35,8 @@ builder.Services.AddAuthentication()
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
 
 // Swagger UI
@@ -51,6 +53,9 @@ app.MapGet("/", () => "API Notifications en ligne !");
 app.MapAuthEndpoints();
 app.MapUpdatesEndpoints();
 app.MapPreferencesEndpoints();
+app.MapDataEndpoints();
+app.MapUpdatesEndpoints();
+
 
 using (var scope = app.Services.CreateScope())
 {

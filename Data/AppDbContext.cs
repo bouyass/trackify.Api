@@ -8,21 +8,14 @@ namespace Trackify.Api.Data
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         public DbSet<User> Users => Set<User>();
-        public DbSet<ExternalProvider> ExternalProviders => Set<ExternalProvider>();
-        public DbSet<Content> Contents => Set<Content>();
+        public DbSet<Entity> Entities => Set<Entity>();
         public DbSet<UserPreference> UserPreferences => Set<UserPreference>();
-        public DbSet<UpdateLog> Updates => Set<UpdateLog>();
         public DbSet<UserUpdate> UserUpdates => Set<UserUpdate>();
-        public DbSet<Category> Categories => Set<Category>();
         public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<ExternalProvider>()
-                .HasOne(p => p.User)
-                .WithMany(u => u.ExternalProviders)
-                .HasForeignKey(p => p.UserId);
 
             modelBuilder.Entity<RefreshToken>()
                .HasOne(r => r.User)
@@ -35,18 +28,6 @@ namespace Trackify.Api.Data
                 .WithMany()
                 .HasForeignKey(u => u.UserId);
 
-            // Relation UpdateLog <-> UserUpdate
-            modelBuilder.Entity<UserUpdate>()
-                .HasOne(u => u.UpdateLog)
-                .WithMany()
-                .HasForeignKey(u => u.UpdateLogId);
-
-            // Relation Content <-> UpdateLog
-            modelBuilder.Entity<UpdateLog>()
-                .HasOne(u => u.Content)
-                .WithMany()
-                .HasForeignKey(u => u.ContentId);
-
             // Relation User <-> UserPreference
             modelBuilder.Entity<UserPreference>()
                 .HasOne(p => p.User)
@@ -55,15 +36,9 @@ namespace Trackify.Api.Data
 
             // Relation Content <-> UserPreference
             modelBuilder.Entity<UserPreference>()
-                .HasOne(p => p.Content)
+                .HasOne(p => p.Entity)
                 .WithMany()
-                .HasForeignKey(p => p.ContentId);
-
-            // Relation Category <-> Content
-            modelBuilder.Entity<Content>()
-                .HasOne(c => c.Category)
-                .WithMany(ca => ca.Contents)
-                .HasForeignKey(c => c.CategoryId);
+                .HasForeignKey(p => p.EntityId);
         }
 
     }

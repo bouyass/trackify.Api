@@ -10,7 +10,6 @@
         public string? PictureUrl { get; set; }
         public ICollection<UserPreference> Preferences { get; set; } = new List<UserPreference>();
         public ICollection<UserUpdate> Updates { get; set; } = new List<UserUpdate>();
-        public ICollection<ExternalProvider> ExternalProviders { get; set; } = new List<ExternalProvider>();
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }
 }

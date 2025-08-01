@@ -23,28 +23,16 @@ namespace Trackify.Api.Endpoints
             {
                 var payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken);
 
-                var user = await context.Users
-                    .Include(u => u.ExternalProviders)
-                    .FirstOrDefaultAsync(u => u.ExternalProviders
-                        .Any(p => p.Provider == "google" && p.ProviderUserId == payload.Subject));
 
-                if (user == null)
+                var user = new User
                 {
-                    user = new User
-                    {
-                        Email = payload.Email,
-                        Username = payload.Name,
-                        PictureUrl = payload.Picture
-                    };
-                    context.Users.Add(user);
-                    context.ExternalProviders.Add(new ExternalProvider
-                    {
-                        User = user,
-                        Provider = "google",
-                        ProviderUserId = payload.Subject
-                    });
-                    await context.SaveChangesAsync();
-                }
+                    Email = payload.Email,
+                    Username = payload.Name,
+                    PictureUrl = payload.Picture
+                };
+                context.Users.Add(user);
+                await context.SaveChangesAsync();
+                
 
                 var token = jwt.GenerateToken(user);
 
