@@ -7,8 +7,8 @@ namespace Trackify.Api.Models
         public Guid Id { get; set; } = Guid.NewGuid();
 
         // User who receives the update
-        public Guid UserId { get; set; }
-        public User? User { get; set; }
+        public Guid TrackifyUserId { get; set; }
+        public TrackifyUser? TrackifyUser { get; set; }
 
         // Link to the related release (instead of UpdateLog)
         public Guid ReleaseId { get; set; }

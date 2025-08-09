@@ -8,8 +8,8 @@
         public string PasswordHash { get; set; } = null!;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string? PictureUrl { get; set; }
-        public ICollection<UserPreference> Preferences { get; set; } = new List<UserPreference>();
-        public ICollection<UserUpdate> Updates { get; set; } = new List<UserUpdate>();
+        public string? Locale { get; set; }
+        public string Provider { get; set; } = "local"; // local, google, etc.
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }
 }

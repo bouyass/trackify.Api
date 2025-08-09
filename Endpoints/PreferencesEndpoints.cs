@@ -21,12 +21,19 @@ namespace Trackify.Api.Endpoints
 
                 var userId = Guid.Parse(userIdClaim);
 
-                // Get all preferences for this user, including Release -> Entity -> Category
-                var preferences = await db.UserPreferences
-                    .Where(up => up.UserId == userId)
+                var userPreferences = await db.UserPreferenceLinks.Where(up => up.TrackifyUserId == userId)
+                    .Select(up => up.PreferenceId)
+                    .ToListAsync();
+
+                var prefs = await db.Preferences
+                    .Where(up => userPreferences.Contains(up.Id))
                     .Include(up => up.Entity.Releases)
                         .ThenInclude(r => r.Entity)
                             .ThenInclude(e => e.Category)
+                    .ToListAsync();
+
+                var preferences = await db.Preferences
+                    .Where(up => userPreferences.Contains(up.Id))
                     .ToListAsync();
                 return Results.Ok(preferences);
             });
@@ -62,18 +69,42 @@ namespace Trackify.Api.Endpoints
                     await db.SaveChangesAsync();
                 }
 
-                // Check if UserPreference exists
-                var existingPref = await db.UserPreferences.FirstOrDefaultAsync(p => p.UserId == userId && p.EntityId == entity.Id);
-                if (existingPref != null)
-                    return Results.Conflict("Preference already exists");
+                if(entity == null)
+                    return Results.BadRequest("Entity not found or created");
 
-                // Add UserPreference
-                var preference = new UserPreference
+                var pref = await db.Preferences
+                    .Include(p => p.Entity)
+                    .FirstOrDefaultAsync(p => p.Entity.ExternalId == entity.ExternalId && p.Entity.Type == entity.Type);
+
+                if (pref == null)
                 {
-                    UserId = userId,
-                    EntityId = entity.Id
-                };
-                db.UserPreferences.Add(preference);
+                    pref = new Preference
+                    {
+                        EntityId = entity.Id,
+                        CreatedAt = DateTime.UtcNow,
+                        Entity = entity,
+                        Id = Guid.NewGuid(),
+                        LinkedUsers = new List<UserPreferenceLink>()
+                    };
+                }
+
+
+                var userPref = await db.UserPreferenceLinks
+                    .FirstOrDefaultAsync(up => up.TrackifyUserId == userId && up.PreferenceId == pref.Id);
+
+                if (userPref == null)
+                {
+                    userPref = new UserPreferenceLink
+                    {
+                        Id = Guid.NewGuid(),
+                        TrackifyUserId = userId,
+                        PreferenceId = pref.Id,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    db.UserPreferenceLinks.Add(userPref);
+                    db.Preferences.Add(pref);
+                }
+
                 await db.SaveChangesAsync();
 
                 return Results.Ok();

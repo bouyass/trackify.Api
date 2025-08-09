@@ -12,31 +12,65 @@ namespace Trackify.Api.Endpoints
     {
         public static void MapAuthEndpoints(this WebApplication app)
         {
-            app.MapGet("/auth/ping", () => "Auth endpoint works!");
 
             string GenerateRefreshToken() => Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+
+            static UserDto ToUserDto(User user) =>
+                new UserDto
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    Username = user.Username,
+                    PictureUrl = user.PictureUrl,
+                    Provider = user.Provider,
+                    Locale = user.Locale
+                };
+
+            static AuthResponseDto CreateAuthResponse(User user, RefreshToken refreshToken, IJwtService jwt) =>
+                new AuthResponseDto
+                {
+                    AccessToken = jwt.GenerateToken(user, refreshToken.Id),
+                    RefreshToken = refreshToken.Token,
+                    SessionId = refreshToken.Id,
+                    User = ToUserDto(user)
+                };
+
+
+            app.MapGet("/auth/ping", () => "Auth endpoint works!");
 
             app.MapPost("/auth/google", async (
                 AuthDto dto,
                 AppDbContext context,
                 IJwtService jwt) =>
             {
+
                 var payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken);
 
+                var user = await context.Users.FirstOrDefaultAsync(u => u.Email == payload.Email);
 
-                var user = new User
+                if (user == null)
                 {
-                    Email = payload.Email,
-                    Username = payload.Name,
-                    PictureUrl = payload.Picture
+                    user = new User
+                    {
+                        Email = payload.Email,
+                        Username = payload.Name,
+                        Provider = "google"
+                    };
+                    context.Users.Add(user);
+                }
+
+                var refreshToken = new RefreshToken
+                {
+                    Token = GenerateRefreshToken(),
+                    ExpiresAt = DateTime.UtcNow.AddDays(7),
+                    User = user
                 };
-                context.Users.Add(user);
+
+                context.RefreshTokens.Add(refreshToken);
                 await context.SaveChangesAsync();
-                
 
-                var token = jwt.GenerateToken(user);
+                return Results.Ok(CreateAuthResponse(user, refreshToken, jwt));
 
-                return Results.Ok(new { token });
             });
 
             app.MapPost("/auth/register", async (
@@ -44,26 +78,31 @@ namespace Trackify.Api.Endpoints
                 AppDbContext context,
                 IJwtService jwt) =>
             {
-
                 if (await context.Users.AnyAsync(u => u.Email == dto.Email || u.Username == dto.Username))
-                {
                     return Results.BadRequest(new { message = "Email or username already exists" });
-                }
-
-                var passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
 
                 var user = new User
                 {
                     Email = dto.Email,
                     Username = dto.Username,
-                    PasswordHash = passwordHash
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                    Provider = "local"
+                };
+
+                var refreshToken = new RefreshToken
+                {
+                    Token = GenerateRefreshToken(),
+                    ExpiresAt = DateTime.UtcNow.AddDays(7),
+                    User = user
                 };
 
                 context.Users.Add(user);
+                context.RefreshTokens.Add(refreshToken);
                 await context.SaveChangesAsync();
 
-                var token = jwt.GenerateToken(user);
-                return Results.Ok(new { token });
+                return Results.Ok(CreateAuthResponse(user, refreshToken, jwt));
+
+
             });
 
             app.MapPost("/auth/login", async (
@@ -71,19 +110,23 @@ namespace Trackify.Api.Endpoints
                 AppDbContext context,
                 IJwtService jwt) =>
             {
-                // Find by username or email
                 var user = await context.Users
                     .FirstOrDefaultAsync(u => u.Username == dto.Identifier || u.Email == dto.Identifier);
 
-                if (user == null)
+                if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
                     return Results.BadRequest(new { message = "Invalid credentials" });
 
-                // Validate password
-                if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                    return Results.BadRequest(new { message = "Invalid credentials" });
+                var refreshToken = new RefreshToken
+                {
+                    Token = GenerateRefreshToken(),
+                    ExpiresAt = DateTime.UtcNow.AddDays(7),
+                    User = user
+                };
 
-                var token = jwt.GenerateToken(user);
-                return Results.Ok(new { token });
+                context.RefreshTokens.Add(refreshToken);
+                await context.SaveChangesAsync();
+
+                return Results.Ok(CreateAuthResponse(user, refreshToken, jwt));
             });
 
             app.MapPost("/auth/refresh", async (
@@ -91,29 +134,68 @@ namespace Trackify.Api.Endpoints
                AppDbContext context,
                IJwtService jwt) =>
             {
-                var refresh = await context.RefreshTokens
+                var oldToken = await context.RefreshTokens
                     .Include(rt => rt.User)
                     .FirstOrDefaultAsync(rt => rt.Token == dto.RefreshToken);
 
-                if (refresh == null || refresh.IsRevoked || refresh.ExpiresAt < DateTime.UtcNow)
+                if (oldToken == null || oldToken.IsRevoked || oldToken.ExpiresAt < DateTime.UtcNow)
                     return Results.BadRequest(new { message = "Invalid or expired refresh token" });
 
-                // Revoke old token (rotation)
-                refresh.IsRevoked = true;
+                oldToken.IsRevoked = true;
 
-                // Issue new refresh token
-                var newRefreshToken = new RefreshToken
+                var newToken = new RefreshToken
                 {
                     Token = GenerateRefreshToken(),
                     ExpiresAt = DateTime.UtcNow.AddDays(7),
-                    User = refresh.User
+                    User = oldToken.User
                 };
-                context.RefreshTokens.Add(newRefreshToken);
+
+                context.RefreshTokens.Add(newToken);
 
                 await context.SaveChangesAsync();
 
-                var token = jwt.GenerateToken(refresh.User);
-                return Results.Ok(new { token, refreshToken = newRefreshToken.Token });
+                return Results.Ok(CreateAuthResponse(oldToken.User, newToken, jwt));
+            });
+
+            app.MapGet("/auth/me", async (
+                HttpContext http,
+                AppDbContext context) =>
+            {
+                var userIdClaim = http.User.FindFirst("sub")?.Value;
+                if (userIdClaim == null) return Results.Unauthorized();
+
+
+                var user = await context.Users.FindAsync(Guid.Parse(userIdClaim));
+                if (user == null) return Results.NotFound();
+
+                return Results.Ok(ToUserDto(user));
+            }).RequireAuthorization();
+
+            app.MapPost("/auth/logout", async (
+                LogoutDto dto,
+                AppDbContext context) =>
+            {
+                var token = await context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == dto.RefreshToken);
+                if (token != null) token.IsRevoked = true;
+                await context.SaveChangesAsync();
+                return Results.Ok();
+            });
+
+            app.MapPost("/auth/logout-all", async (
+                HttpContext http,
+                AppDbContext context) => {
+
+                var userIdClaim = http.User.FindFirst("sub")?.Value;
+                if (userIdClaim == null) return Results.Unauthorized();
+
+                var tokens = await context.RefreshTokens
+                    .Where(rt => rt.UserId == Guid.Parse(userIdClaim) && !rt.IsRevoked)
+                    .ToListAsync();
+
+                foreach (var t in tokens) t.IsRevoked = true;
+                await context.SaveChangesAsync();
+
+                return Results.Ok();
             });
         }
     }

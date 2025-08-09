@@ -20,7 +20,7 @@ namespace Trackify.Api.Endpoints
 
                 // Récupérer tous les UserUpdates avec Release + Entity + Category
                 var updates = await db.UserUpdates
-                    .Where(uu => uu.UserId == userId)
+                    .Where(uu => uu.TrackifyUserId == userId)
                     .Include(uu => uu.Release)
                         .ThenInclude(r => r.Entity)
                             .ThenInclude(e => e.Category)

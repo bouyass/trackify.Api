@@ -9,7 +9,7 @@ namespace Trackify.Api.Services
 {
     public interface IJwtService
     {
-        string GenerateToken(User user);
+       string GenerateToken(User user, Guid sessionId);
     }
 
     public class JwtService : IJwtService
@@ -21,33 +21,29 @@ namespace Trackify.Api.Services
             _config = config;
         }
 
-        public string GenerateToken(User user)
+        public string GenerateToken(User user, Guid sessionId)
         {
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(JwtRegisteredClaimNames.Name, user.Username)
+                new Claim("sid", sessionId.ToString()),
+                new Claim("email", user.Email),
+                new Claim("username", user.Username),
+                new Claim("provider", user.Provider)
             };
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Secret"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddDays(7),
+                expires: DateTime.UtcNow.AddMinutes(15),
                 signingCredentials: creds
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-
-        private static string GenerateRefreshToken()
-        {
-            return Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-        }
-
     }
 }

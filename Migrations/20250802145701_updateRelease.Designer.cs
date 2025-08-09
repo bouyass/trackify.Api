@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Trackify.Api.Data;
@@ -11,9 +12,11 @@ using Trackify.Api.Data;
 namespace Trackify.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250802145701_updateRelease")]
+    partial class updateRelease
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -72,14 +75,14 @@ namespace Trackify.Api.Migrations
                     b.Property<Guid>("EntityId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("TrackifyUserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("EntityId");
 
-                    b.HasIndex("TrackifyUserId");
+                    b.HasIndex("UserId");
 
                     b.ToTable("Preferences");
                 });
@@ -95,9 +98,6 @@ namespace Trackify.Api.Migrations
 
                     b.Property<bool>("IsRevoked")
                         .HasColumnType("boolean");
-
-                    b.Property<Guid?>("RotatedFromId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("Token")
                         .IsRequired()
@@ -156,22 +156,6 @@ namespace Trackify.Api.Migrations
                     b.ToTable("Releases");
                 });
 
-            modelBuilder.Entity("Trackify.Api.Models.TrackifyUser", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("TrackifyUsers");
-                });
-
             modelBuilder.Entity("Trackify.Api.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -185,18 +169,11 @@ namespace Trackify.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Locale")
-                        .HasColumnType("text");
-
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("PictureUrl")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Provider")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Username")
@@ -220,14 +197,14 @@ namespace Trackify.Api.Migrations
                     b.Property<Guid>("PreferenceId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("TrackifyUserId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("PreferenceId");
 
-                    b.HasIndex("TrackifyUserId");
+                    b.HasIndex("UserId");
 
                     b.ToTable("UserPreferenceLinks");
                 });
@@ -250,18 +227,23 @@ namespace Trackify.Api.Migrations
                     b.Property<Guid>("ReleaseId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("TrackifyUserId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("UserId1")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ReleaseId");
 
-                    b.HasIndex("TrackifyUserId");
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId1");
 
                     b.ToTable("UserUpdates");
                 });
@@ -274,9 +256,9 @@ namespace Trackify.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Trackify.Api.Models.TrackifyUser", null)
+                    b.HasOne("Trackify.Api.Models.User", null)
                         .WithMany("Preferences")
-                        .HasForeignKey("TrackifyUserId");
+                        .HasForeignKey("UserId");
 
                     b.Navigation("Entity");
                 });
@@ -303,17 +285,6 @@ namespace Trackify.Api.Migrations
                     b.Navigation("Entity");
                 });
 
-            modelBuilder.Entity("Trackify.Api.Models.TrackifyUser", b =>
-                {
-                    b.HasOne("Trackify.Api.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Trackify.Api.Models.UserPreferenceLink", b =>
                 {
                     b.HasOne("Trackify.Api.Models.Preference", "Preference")
@@ -322,15 +293,15 @@ namespace Trackify.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Trackify.Api.Models.TrackifyUser", "TrackifyUser")
+                    b.HasOne("Trackify.Api.Models.User", "User")
                         .WithMany()
-                        .HasForeignKey("TrackifyUserId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Preference");
 
-                    b.Navigation("TrackifyUser");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Trackify.Api.Models.UserUpdate", b =>
@@ -341,15 +312,19 @@ namespace Trackify.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Trackify.Api.Models.TrackifyUser", "TrackifyUser")
-                        .WithMany("Updates")
-                        .HasForeignKey("TrackifyUserId")
+                    b.HasOne("Trackify.Api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Trackify.Api.Models.User", null)
+                        .WithMany("Updates")
+                        .HasForeignKey("UserId1");
+
                     b.Navigation("Release");
 
-                    b.Navigation("TrackifyUser");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Trackify.Api.Models.Entity", b =>
@@ -362,16 +337,13 @@ namespace Trackify.Api.Migrations
                     b.Navigation("LinkedUsers");
                 });
 
-            modelBuilder.Entity("Trackify.Api.Models.TrackifyUser", b =>
+            modelBuilder.Entity("Trackify.Api.Models.User", b =>
                 {
                     b.Navigation("Preferences");
 
-                    b.Navigation("Updates");
-                });
-
-            modelBuilder.Entity("Trackify.Api.Models.User", b =>
-                {
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("Updates");
                 });
 #pragma warning restore 612, 618
         }
