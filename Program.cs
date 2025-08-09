@@ -87,7 +87,6 @@ app.MapAuthEndpoints();
 app.MapUpdatesEndpoints();
 app.MapPreferencesEndpoints();
 app.MapDataEndpoints();
-app.MapUpdatesEndpoints();
 
 using (var scope = app.Services.CreateScope())
 {

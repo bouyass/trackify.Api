@@ -71,7 +71,9 @@ namespace Trackify.Api.Endpoints
 
                 return Results.Ok(CreateAuthResponse(user, refreshToken, jwt));
 
-            });
+            })
+                .Produces<AuthResponseDto>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status400BadRequest);
 
             app.MapPost("/auth/register", async (
                 RegisterDto dto,
@@ -103,13 +105,16 @@ namespace Trackify.Api.Endpoints
                 return Results.Ok(CreateAuthResponse(user, refreshToken, jwt));
 
 
-            });
+            })
+                .Produces<AuthResponseDto>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status400BadRequest);
 
             app.MapPost("/auth/login", async (
                 LoginDto dto,
                 AppDbContext context,
                 IJwtService jwt) =>
             {
+                Console.WriteLine(dto);
                 var user = await context.Users
                     .FirstOrDefaultAsync(u => u.Username == dto.Identifier || u.Email == dto.Identifier);
 
@@ -127,7 +132,9 @@ namespace Trackify.Api.Endpoints
                 await context.SaveChangesAsync();
 
                 return Results.Ok(CreateAuthResponse(user, refreshToken, jwt));
-            });
+            })
+                .Produces<AuthResponseDto>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status400BadRequest);
 
             app.MapPost("/auth/refresh", async (
                RefreshDto dto,
@@ -155,7 +162,9 @@ namespace Trackify.Api.Endpoints
                 await context.SaveChangesAsync();
 
                 return Results.Ok(CreateAuthResponse(oldToken.User, newToken, jwt));
-            });
+            })
+                .Produces<AuthResponseDto>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status400BadRequest);
 
             app.MapGet("/auth/me", async (
                 HttpContext http,
@@ -169,7 +178,10 @@ namespace Trackify.Api.Endpoints
                 if (user == null) return Results.NotFound();
 
                 return Results.Ok(ToUserDto(user));
-            }).RequireAuthorization();
+            })
+                .RequireAuthorization()
+                .Produces<UserDto>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status400BadRequest);
 
             app.MapPost("/auth/logout", async (
                 LogoutDto dto,
