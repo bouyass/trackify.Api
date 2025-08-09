@@ -114,12 +114,15 @@ namespace Trackify.Api.Endpoints
                 AppDbContext context,
                 IJwtService jwt) =>
             {
-                Console.WriteLine(dto);
                 var user = await context.Users
                     .FirstOrDefaultAsync(u => u.Username == dto.Identifier || u.Email == dto.Identifier);
 
                 if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                    return Results.BadRequest(new { message = "Invalid credentials" });
+                    return Results.BadRequest(new ErrorResponseDto
+                    {
+                        Code = 1001,
+                        Message = "Invalid credentials"
+                    });
 
                 var refreshToken = new RefreshToken
                 {
@@ -134,7 +137,7 @@ namespace Trackify.Api.Endpoints
                 return Results.Ok(CreateAuthResponse(user, refreshToken, jwt));
             })
                 .Produces<AuthResponseDto>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status400BadRequest);
+                .Produces<ErrorResponseDto>(StatusCodes.Status400BadRequest);
 
             app.MapPost("/auth/refresh", async (
                RefreshDto dto,
