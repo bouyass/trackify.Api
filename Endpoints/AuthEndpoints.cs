@@ -452,26 +452,6 @@ namespace Trackify.Api.Endpoints
                     });
                 }
 
-                // Validate new password match
-                if (dto.NewPassword != dto.ConfirmPassword)
-                {
-                    return Results.BadRequest(new ErrorResponseDto
-                    {
-                        Code = 2002,
-                        Message = "Passwords do not match"
-                    });
-                }
-
-                // Optional: enforce password policy
-                if (dto.NewPassword.Length < 8)
-                {
-                    return Results.BadRequest(new ErrorResponseDto
-                    {
-                        Code = 2003,
-                        Message = "New password must be at least 8 characters"
-                    });
-                }
-
 
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
 
