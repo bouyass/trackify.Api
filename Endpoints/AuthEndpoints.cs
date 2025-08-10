@@ -426,30 +426,46 @@ namespace Trackify.Api.Endpoints
                 if (userIdClaim == null)
                 {
                     logger.LogWarning("Unauthorized reset-password call. TraceId={TraceId}", http.TraceIdentifier);
-                    return Results.Unauthorized();
+                    return new ErrorResponseDto
+                    {
+                        Code = 4002,
+                        Details = "401",
+                        Message = "Unauthorized reset-password call."
+                    };
                 }
 
                 if (!Guid.TryParse(userIdClaim, out var userId))
                 {
                     logger.LogWarning("Invalid user id claim for reset-password. TraceId={TraceId}", http.TraceIdentifier);
-                    return Results.Unauthorized();
+                    return new ErrorResponseDto
+                    {
+                        Code = 4001,
+                        Details = "401",
+                        Message = "Invalid user id claim for reset-password"
+                    };
                 }
 
                 var user = await context.Users.Include(u => u.RefreshTokens).FirstOrDefaultAsync(u => u.Id == userId);
                 if (user == null)
                 {
                     logger.LogWarning("User not found for reset-password. TraceId={TraceId}", http.TraceIdentifier);
-                    return Results.NotFound();
+                    return new ErrorResponseDto
+                    {
+                        Code = 4004,
+                        Details = "401",
+                        Message = "User not found for reset-password"
+                    };
                 }
 
                 // Validate current password
                 if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
                 {
-                    return Results.BadRequest(new ErrorResponseDto
+                    return new ErrorResponseDto
                     {
-                        Code = 2001,
+                        Code = 4003,
+                        Details = "401",
                         Message = "Current password is incorrect"
-                    });
+                    };
                 }
 
 
