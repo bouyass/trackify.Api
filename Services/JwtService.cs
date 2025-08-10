@@ -23,7 +23,13 @@ namespace Trackify.Api.Services
 
         public string GenerateToken(User user, Guid sessionId)
         {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+            var keyString = _config["Jwt:Key"] ?? _config["JwtKey"];
+            var issuer = _config["Jwt:Issuer"] ?? _config["JwtIssuer"];
+            var audience = _config["Jwt:Audience"] ?? _config["JwtAudience"];
+            if (string.IsNullOrWhiteSpace(keyString))
+                throw new InvalidOperationException("JWT Key is not configured. Set Jwt:Key in appsettings.json or JwtKey in environment variables.");
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var claims = new List<Claim>
@@ -36,8 +42,8 @@ namespace Trackify.Api.Services
             };
 
             var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
+                issuer: issuer,
+                audience: audience,
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(15),
                 signingCredentials: creds
