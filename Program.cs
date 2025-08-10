@@ -51,15 +51,18 @@ builder.Services.AddScoped<GameCompanySearchService>();
 builder.Services.AddAuthentication()
     .AddJwtBearer(options =>
     {
+        var keyString = builder.Configuration["Jwt:Secret"] ?? builder.Configuration["JwtKey"];
+        var issuer = builder.Configuration["Jwt:Issuer"] ?? builder.Configuration["JwtIssuer"];
+        var audience = builder.Configuration["Jwt:Audience"] ?? builder.Configuration["JwtAudience"];
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]))
+            ValidIssuer = issuer,
+            ValidAudience = audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString))
         };
     });
 
