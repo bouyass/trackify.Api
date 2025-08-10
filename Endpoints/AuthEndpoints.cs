@@ -414,6 +414,82 @@ namespace Trackify.Api.Endpoints
 
                 return Results.Ok();
             });
+
+            app.MapPost("/auth/reset-password", async (
+            ResetPasswordDto dto,
+            HttpContext http,
+            AppDbContext context,
+            ILogger<AuthLogCategory> logger) =>
+            {
+                var userIdClaim = http.User.FindFirst("sub")?.Value;
+                if (userIdClaim == null)
+                {
+                    logger.LogWarning("Unauthorized reset-password call. TraceId={TraceId}", http.TraceIdentifier);
+                    return Results.Unauthorized();
+                }
+
+                if (!Guid.TryParse(userIdClaim, out var userId))
+                {
+                    logger.LogWarning("Invalid user id claim for reset-password. TraceId={TraceId}", http.TraceIdentifier);
+                    return Results.Unauthorized();
+                }
+
+                var user = await context.Users.Include(u => u.RefreshTokens).FirstOrDefaultAsync(u => u.Id == userId);
+                if (user == null)
+                {
+                    logger.LogWarning("User not found for reset-password. TraceId={TraceId}", http.TraceIdentifier);
+                    return Results.NotFound();
+                }
+
+                // Validate current password
+                if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+                {
+                    return Results.BadRequest(new ErrorResponseDto
+                    {
+                        Code = 2001,
+                        Message = "Current password is incorrect"
+                    });
+                }
+
+                // Validate new password match
+                if (dto.NewPassword != dto.ConfirmPassword)
+                {
+                    return Results.BadRequest(new ErrorResponseDto
+                    {
+                        Code = 2002,
+                        Message = "Passwords do not match"
+                    });
+                }
+
+                // Optional: enforce password policy
+                if (dto.NewPassword.Length < 8)
+                {
+                    return Results.BadRequest(new ErrorResponseDto
+                    {
+                        Code = 2003,
+                        Message = "New password must be at least 8 characters"
+                    });
+                }
+
+
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+
+
+                foreach (var token in user.RefreshTokens)
+                {
+                    token.IsRevoked = true;
+                }
+
+                await context.SaveChangesAsync();
+
+                logger.LogInformation("Password reset successful. UserId={UserId}, TraceId={TraceId}", user.Id, http.TraceIdentifier);
+
+                return Results.Ok(new { Message = "Password reset successful" });
+            })
+                .RequireAuthorization()
+                .Produces(StatusCodes.Status200OK)
+                .Produces<ErrorResponseDto>(StatusCodes.Status400BadRequest);
+
         }
     }
 }
