@@ -169,15 +169,27 @@ namespace Trackify.Api.Endpoints
                     Provider = "local"
                 };
 
-                var refreshToken = new RefreshToken
-                {
-                    Token = GenerateRefreshToken(),
-                    ExpiresAt = DateTime.UtcNow.AddDays(7),
-                    User = user
-                };
-
                 context.Users.Add(user);
-                context.RefreshTokens.Add(refreshToken);
+
+                RefreshToken refreshToken;
+
+                try
+                {
+                    refreshToken = new RefreshToken
+                    {
+                        Token = GenerateRefreshToken(),
+                        ExpiresAt = DateTime.UtcNow.AddDays(7),
+                        User = user
+                    };
+
+                    context.RefreshTokens.Add(refreshToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(LogEvents.DbSave, ex,
+                        "Failed to generate token.", http.TraceIdentifier);
+                    return Results.Problem("Unable to complete registration.");
+                }               
 
                 try
                 {
