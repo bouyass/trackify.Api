@@ -81,7 +81,11 @@ namespace Trackify.Api.Endpoints
                 IJwtService jwt) =>
             {
                 if (await context.Users.AnyAsync(u => u.Email == dto.Email || u.Username == dto.Username))
-                    return Results.BadRequest(new { message = "Email or username already exists" });
+                    return Results.BadRequest(new ErrorResponseDto
+                    {
+                        Code = 1002,
+                        Message = "Email or username already exists"
+                    });
 
                 var user = new User
                 {
@@ -107,7 +111,7 @@ namespace Trackify.Api.Endpoints
 
             })
                 .Produces<AuthResponseDto>(StatusCodes.Status200OK)
-                .Produces(StatusCodes.Status400BadRequest);
+                .Produces<ErrorResponseDto>(StatusCodes.Status400BadRequest);
 
             app.MapPost("/auth/login", async (
                 LoginDto dto,
