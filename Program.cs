@@ -51,10 +51,11 @@ builder.Services.AddScoped<GameCompanySearchService>();
 builder.Services.AddAuthentication()
     .AddJwtBearer(options =>
     {
-        var keyString = builder.Configuration["Jwt:Secret"] ?? builder.Configuration["JwtKey"];
+        var keyString = builder.Configuration["Jwt:Secret"] ?? builder.Configuration["JwtSecret"] ?? builder.Configuration["JwtKey"];
         var issuer = builder.Configuration["Jwt:Issuer"] ?? builder.Configuration["JwtIssuer"];
         var audience = builder.Configuration["Jwt:Audience"] ?? builder.Configuration["JwtAudience"];
-        Console.WriteLine("Key string: ", keyString, issuer, audience);
+
+        Console.WriteLine($"[JWT] secretLen={keyString?.Length ?? 0} issuer={issuer} audience={audience}");
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
