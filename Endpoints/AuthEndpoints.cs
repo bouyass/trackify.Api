@@ -6,6 +6,7 @@ using Trackify.Api.Dtos;
 using Trackify.Api.Models;
 using Trackify.Api.Services;
 using BCrypt.Net;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Trackify.Api.Endpoints
 {
@@ -490,6 +491,141 @@ namespace Trackify.Api.Endpoints
                 .Produces(StatusCodes.Status200OK)
                 .Produces<ErrorResponseDto>(StatusCodes.Status400BadRequest);
 
+            app.MapDelete("/auth/delete-account", async (
+            [FromBody] DeleteAccountDto dto,
+            HttpContext http,
+            AppDbContext context,
+            ILogger<AuthLogCategory> logger) =>
+            {
+                var userIdClaim = http.User.FindFirst("sub")?.Value;
+                if (userIdClaim == null)
+                {
+                    logger.LogWarning(LogEvents.LogoutAll, "Unauthorized delete-account call. TraceId={TraceId}", http.TraceIdentifier);
+                    return Results.Unauthorized();
+                }
+
+                if (!Guid.TryParse(userIdClaim, out var userId))
+                {
+                    logger.LogWarning(LogEvents.LogoutAll, "Invalid user id claim for delete-account. TraceId={TraceId}", http.TraceIdentifier);
+                    return Results.Unauthorized();
+                }
+
+                // Load user + tokens (and include other navigations you’ll need to clean)
+                var user = await context.Users
+                    .Include(u => u.RefreshTokens)
+                    .FirstOrDefaultAsync(u => u.Id == userId);
+
+                if (user == null)
+                {
+                    logger.LogWarning(LogEvents.LogoutAll, "User not found for delete-account. UserId={UserId}, TraceId={TraceId}", userId, http.TraceIdentifier);
+                    return Results.NotFound();
+                }
+
+                // Identity confirmation per provider
+                if (user.Provider == "local")
+                {
+                    if (string.IsNullOrWhiteSpace(dto.CurrentPassword) ||
+                        !BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+                    {
+                        return Results.BadRequest(new ErrorResponseDto
+                        {
+                            Code = 2101,
+                            Message = "Current password is incorrect"
+                        });
+                    }
+                }
+                else if (user.Provider == "google")
+                {
+                    if (string.IsNullOrWhiteSpace(dto.GoogleIdToken))
+                    {
+                        return Results.BadRequest(new ErrorResponseDto
+                        {
+                            Code = 2102,
+                            Message = "Google ID token is required"
+                        });
+                    }
+
+                    try
+                    {
+                        var payload = await GoogleJsonWebSignature.ValidateAsync(dto.GoogleIdToken);
+                        // Match on email (and you can also check payload.Subject if you store it)
+                        if (!string.Equals(payload.Email, user.Email, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return Results.BadRequest(new ErrorResponseDto
+                            {
+                                Code = 2103,
+                                Message = "Google token does not match account"
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(LogEvents.ExternalValidation, ex, "Google token validation failed for delete-account. TraceId={TraceId}", http.TraceIdentifier);
+                        return Results.BadRequest(new ErrorResponseDto
+                        {
+                            Code = 2104,
+                            Message = "Invalid Google token"
+                        });
+                    }
+                }
+                else
+                {
+                    // Unknown/unsupported provider
+                    return Results.BadRequest(new ErrorResponseDto
+                    {
+                        Code = 2199,
+                        Message = "Unsupported provider"
+                    });
+                }
+
+                // ⚠️ Destructive: wrap in a transaction to avoid partial state
+                using var tx = await context.Database.BeginTransactionAsync();
+                try
+                {
+                    // Get the TrackifyUser record for this User
+                    var trackifyUser = await context.TrackifyUsers
+                        .FirstOrDefaultAsync(tu => tu.UserId == userId);
+
+                    if (trackifyUser != null)
+                    {
+                        // Delete related UserUpdates
+                        var updates = await context.UserUpdates
+                            .Where(u => u.TrackifyUserId == trackifyUser.Id)
+                            .ToListAsync();
+                        context.UserUpdates.RemoveRange(updates);
+
+                        // Delete related UserPreferenceLinks
+                        var links = await context.UserPreferenceLinks
+                            .Where(l => l.TrackifyUserId == trackifyUser.Id)
+                            .ToListAsync();
+                        context.UserPreferenceLinks.RemoveRange(links);
+
+                        // Delete TrackifyUser itself
+                        context.TrackifyUsers.Remove(trackifyUser);
+                    }
+
+                    // Revoke/delete refresh tokens
+                    context.RefreshTokens.RemoveRange(user.RefreshTokens);
+
+                    // Finally, delete the User
+                    context.Users.Remove(user);
+
+                    await context.SaveChangesAsync();
+                    await tx.CommitAsync();
+
+                    logger.LogInformation("Deleted account and related data for UserId={UserId}", userId);
+                    return Results.Ok(new { message = "Account deleted successfully" });
+                }
+                catch (Exception ex)
+                {
+                    await tx.RollbackAsync();
+                    logger.LogError(ex, "Failed to delete account. UserId={UserId}, TraceId={TraceId}", userId, http.TraceIdentifier);
+                    return Results.Problem("Unable to delete account.");
+                }
+            })
+            .RequireAuthorization()
+            .Produces(StatusCodes.Status200OK)
+            .Produces<ErrorResponseDto>(StatusCodes.Status400BadRequest);
         }
     }
 }
