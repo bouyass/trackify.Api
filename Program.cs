@@ -22,7 +22,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Swagger pour tester facilement
-builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<IJwtService, JwtService>();
@@ -55,7 +54,6 @@ builder.Services.AddAuthentication()
         var issuer = builder.Configuration["Jwt:Issuer"] ?? builder.Configuration["JwtIssuer"];
         var audience = builder.Configuration["Jwt:Audience"] ?? builder.Configuration["JwtAudience"];
 
-        Console.WriteLine($"[JWT] secretLen={keyString?.Length ?? 0} issuer={issuer} audience={audience}");
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -84,6 +82,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/", () => "API Notifications en ligne !");
 
