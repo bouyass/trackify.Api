@@ -23,6 +23,8 @@ namespace Trackify.Api.Services
 
         public string GenerateToken(User user, Guid sessionId)
         {
+            Console.WriteLine("Generating token ...");
+
             var keyString = _config["Jwt:Key"] ?? _config["JwtKey"];
             var issuer = _config["Jwt:Issuer"] ?? _config["JwtIssuer"];
             var audience = _config["Jwt:Audience"] ?? _config["JwtAudience"];
