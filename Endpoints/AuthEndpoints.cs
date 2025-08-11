@@ -1,12 +1,13 @@
-﻿using Google.Apis.Auth;
+﻿using BCrypt.Net;
+using Google.Apis.Auth;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims;
 using Trackify.Api.Data;
 using Trackify.Api.Dtos;
 using Trackify.Api.Models;
 using Trackify.Api.Services;
-using BCrypt.Net;
-using Microsoft.AspNetCore.Mvc;
 
 namespace Trackify.Api.Endpoints
 {
@@ -424,7 +425,7 @@ namespace Trackify.Api.Endpoints
             AppDbContext context,
             ILogger<AuthLogCategory> logger) =>
             {
-                var userIdClaim = http.User.FindFirst("sub")?.Value;
+                var userIdClaim = http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (userIdClaim == null)
                 {
                     logger.LogWarning("Unauthorized reset-password call. TraceId={TraceId}", http.TraceIdentifier);
@@ -496,7 +497,7 @@ namespace Trackify.Api.Endpoints
             AppDbContext context,
             ILogger<AuthLogCategory> logger) =>
             {
-                var userIdClaim = http.User.FindFirst("sub")?.Value;
+                var userIdClaim = http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (userIdClaim == null)
                 {
                     logger.LogWarning(LogEvents.LogoutAll, "Unauthorized delete-account call. TraceId={TraceId}", http.TraceIdentifier);
