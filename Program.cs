@@ -99,4 +99,12 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 }
 
+app.Use(async (context, next) =>
+{
+    Console.WriteLine("User authenticated? " + context.User.Identity?.IsAuthenticated);
+    foreach (var claim in context.User.Claims)
+        Console.WriteLine($"CLAIM: {claim.Type} = {claim.Value}");
+    await next();
+});
+
 app.Run();
