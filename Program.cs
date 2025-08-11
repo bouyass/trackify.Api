@@ -53,7 +53,7 @@ builder.Services.AddAuthentication()
         var keyString = builder.Configuration["Jwt:Secret"] ?? builder.Configuration["JwtSecret"] ?? builder.Configuration["JwtKey"];
         var issuer = builder.Configuration["Jwt:Issuer"] ?? builder.Configuration["JwtIssuer"];
         var audience = builder.Configuration["Jwt:Audience"] ?? builder.Configuration["JwtAudience"];
-        Console.WriteLine($"[JWT] secretLen={keyString?.Length ?? 0} issuer={issuer} audience={audience}");
+        Console.WriteLine($"[JWT] secret={keyString} issuer={issuer} audience={audience}");
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
