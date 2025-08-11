@@ -385,7 +385,8 @@ namespace Trackify.Api.Endpoints
                         http.TraceIdentifier);
                 }
                 return Results.Ok();
-            });
+            })
+              .RequireAuthorization();
 
             app.MapPost("/auth/logout-all", async (
                 HttpContext http,
@@ -414,7 +415,8 @@ namespace Trackify.Api.Endpoints
                     userId, tokens.Count, http.TraceIdentifier);
 
                 return Results.Ok();
-            });
+            })
+                .RequireAuthorization();
 
             app.MapPost("/auth/reset-password", async (
             ResetPasswordDto dto,
