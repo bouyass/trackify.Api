@@ -26,6 +26,8 @@ namespace Trackify.Api.Services
             var keyString = _config["Jwt:Key"] ?? _config["JwtKey"];
             var issuer = _config["Jwt:Issuer"] ?? _config["JwtIssuer"];
             var audience = _config["Jwt:Audience"] ?? _config["JwtAudience"];
+
+            Console.WriteLine("keyString inside the service:", keyString);
             if (string.IsNullOrWhiteSpace(keyString))
                 throw new InvalidOperationException("JWT Key is not configured. Set Jwt:Key in appsettings.json or JwtKey in environment variables.");
 
