@@ -521,20 +521,8 @@ namespace Trackify.Api.Endpoints
                     return Results.NotFound();
                 }
 
-                // Identity confirmation per provider
-                if (user.Provider == "local")
-                {
-                    if (string.IsNullOrWhiteSpace(dto.CurrentPassword) ||
-                        !BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
-                    {
-                        return Results.BadRequest(new ErrorResponseDto
-                        {
-                            Code = 2101,
-                            Message = "Current password is incorrect"
-                        });
-                    }
-                }
-                else if (user.Provider == "google")
+                
+                if (user.Provider == "google")
                 {
                     if (string.IsNullOrWhiteSpace(dto.GoogleIdToken))
                     {
@@ -568,15 +556,7 @@ namespace Trackify.Api.Endpoints
                         });
                     }
                 }
-                else
-                {
-                    // Unknown/unsupported provider
-                    return Results.BadRequest(new ErrorResponseDto
-                    {
-                        Code = 2199,
-                        Message = "Unsupported provider"
-                    });
-                }
+
 
                 // ⚠️ Destructive: wrap in a transaction to avoid partial state
                 using var tx = await context.Database.BeginTransactionAsync();

@@ -53,7 +53,7 @@ builder.Services.AddAuthentication()
         var keyString = builder.Configuration["Jwt:Secret"] ?? builder.Configuration["JwtKey"];
         var issuer = builder.Configuration["Jwt:Issuer"] ?? builder.Configuration["JwtIssuer"];
         var audience = builder.Configuration["Jwt:Audience"] ?? builder.Configuration["JwtAudience"];
-        Console.WriteLine($"[JWT] secret={keyString} issuer={issuer} audience={audience}");
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -98,13 +98,5 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 }
-
-app.Use(async (context, next) =>
-{
-    Console.WriteLine("User authenticated? " + context.User.Identity?.IsAuthenticated);
-    foreach (var claim in context.User.Claims)
-        Console.WriteLine($"CLAIM: {claim.Type} = {claim.Value}");
-    await next();
-});
 
 app.Run();
