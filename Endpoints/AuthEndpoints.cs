@@ -101,7 +101,8 @@ namespace Trackify.Api.Endpoints
                         Username = payload.Name,
                         Provider = "google",
                         PictureUrl = payload.Picture,
-                        Locale = payload.Locale
+                        Locale = payload.Locale,
+                        PasswordHash = "GOOGLE_USER_NO_PASSWORD"
                     };
                     context.Users.Add(user);
                     logger.LogInformation(LogEvents.GoogleSignIn,
