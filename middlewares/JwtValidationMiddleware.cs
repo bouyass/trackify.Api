@@ -67,10 +67,10 @@ namespace Trackify.Api.middlewares
                 var parameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuer = _config["Issuer:Issuer"],
+                    ValidIssuer = _config["Issuer:Issuer"] ?? _config["Issuer"],
 
                     ValidateAudience = true,
-                    ValidAudience = _config["Issuer:Audience"],
+                    ValidAudience = _config["Issuer:Audience"] ?? _config["Audience"],
 
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new RsaSecurityKey(rsa) { KeyId = key.PublicJwk.Kid },
@@ -110,9 +110,9 @@ namespace Trackify.Api.middlewares
             {
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10);
 
-                var issuerBase = _config["Issuer:Url"];
-                var appId = _config["Issuer:AppId"];
-                var adminKey = _config["Issuer:AdminApiKey"];
+                var issuerBase = _config["Issuer:Url"] ?? _config["Url"];
+                var appId = _config["Issuer:AppId"] ?? _config["AppId"];
+                var adminKey = _config["Issuer:AdminApiKey"] ?? _config["AdminApiKey"];
 
                 var req = new HttpRequestMessage(HttpMethod.Get, $"{issuerBase}/v1/apps/{appId}/keys");
                 req.Headers.Add("x-admin-api-key", adminKey);

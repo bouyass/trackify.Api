@@ -26,16 +26,16 @@ namespace Trackify.Api.Services
         {
             Console.WriteLine("Requesting token from Issuer ...");
 
-            var issuerUrl = _config["Issuer:Url"]
+            var issuerUrl = _config["Issuer:Url"] ?? _config["Url"]
                 ?? throw new InvalidOperationException("Issuer:Url is not configured.");
 
-            var appId = _config["Issuer:AppId"]
+            var appId = _config["Issuer:AppId"] ?? _config["AppId"]
                 ?? throw new InvalidOperationException("Issuer:AppId is not configured.");
 
-            var tenantId = _config["Issuer:TenantId"]
+            var tenantId = _config["Issuer:TenantId"] ?? _config["AppId"]
                 ?? throw new InvalidOperationException("Issuer:TenantId is not configured.");
 
-            var adminApiKey = _config["Issuer:AdminApiKey"]
+            var adminApiKey = _config["Issuer:AdminApiKey"] ?? _config["AdminApiKey"]
                 ?? throw new InvalidOperationException("Issuer:AdminApiKey is not configured.");
 
             var payload = new
@@ -78,8 +78,8 @@ namespace Trackify.Api.Services
 
         public async Task<AuthResponseDto> RefreshToken(string refreshToken)
         {
-            var appId = _config["Issuer:AppId"];
-            var issuerBase = _config["Issuer:BaseUrl"];
+            var appId = _config["Issuer:AppId"] ?? _config["AppId"];
+            var issuerBase = _config["Issuer:Url"] ?? _config["Url"];
 
             var body = new
             {
