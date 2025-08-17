@@ -10,6 +10,7 @@ using Trackify.Api.DataProviders.ReleaseProviders.Interfaces;
 using Trackify.Api.Endpoints;
 using Trackify.Api.Mappers;
 using Trackify.Api.Mappers.Interfaces;
+using Trackify.Api.middlewares;
 using Trackify.Api.Services;
 using Trackify.Api.Services.Interfaces;
 
@@ -68,6 +69,7 @@ builder.Services.AddAuthentication()
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -81,6 +83,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// Your middleware must run before authorization
+app.UseMiddleware<JwtValidationMiddleware>();
 
 
 app.UseAuthentication();

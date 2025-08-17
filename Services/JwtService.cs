@@ -1,58 +1,97 @@
-
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+﻿using Google.Apis.Auth.OAuth2.Responses;
+using System.Net.Http.Json;
+using Trackify.Api.Dtos;
 using Trackify.Api.Models;
 
 namespace Trackify.Api.Services
 {
     public interface IJwtService
     {
-       string GenerateToken(User user, Guid sessionId);
+        Task<AuthResponseDto> GenerateToken(User user, Guid sessionId);
+        Task<AuthResponseDto> RefreshToken(string refreshToken);
     }
 
     public class JwtService : IJwtService
     {
+        private readonly HttpClient _http;
         private readonly IConfiguration _config;
 
-        public JwtService(IConfiguration config)
+        public JwtService(HttpClient http, IConfiguration config)
         {
+            _http = http;
             _config = config;
         }
 
-        public string GenerateToken(User user, Guid sessionId)
+        public async Task<AuthResponseDto> GenerateToken(User user, Guid sessionId)
         {
-            Console.WriteLine("Generating token ...");
+            Console.WriteLine("Requesting token from Issuer ...");
 
-            var keyString = _config["Jwt:Key"] ?? _config["JwtKey"];
-            var issuer = _config["Jwt:Issuer"] ?? _config["JwtIssuer"];
-            var audience = _config["Jwt:Audience"] ?? _config["JwtAudience"];
+            var issuerUrl = _config["Issuer:Url"]
+                ?? throw new InvalidOperationException("Issuer:Url is not configured.");
 
-            if (string.IsNullOrWhiteSpace(keyString))
-                throw new InvalidOperationException("JWT Key is not configured. Set Jwt:Key in appsettings.json or JwtKey in environment variables.");
+            var appId = _config["Issuer:AppId"]
+                ?? throw new InvalidOperationException("Issuer:AppId is not configured.");
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var tenantId = _config["Issuer:TenantId"]
+                ?? throw new InvalidOperationException("Issuer:TenantId is not configured.");
 
-            var claims = new List<Claim>
+            var adminApiKey = _config["Issuer:AdminApiKey"]
+                ?? throw new InvalidOperationException("Issuer:AdminApiKey is not configured.");
+
+            var payload = new
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim("sid", sessionId.ToString()),
-                new Claim("email", user.Email),
-                new Claim("username", user.Username),
-                new Claim("provider", user.Provider)
+                appId,
+                tenantId,
+                sub = user.Id.ToString(),
+                claims = new
+                {
+                    email = user.Email,
+                    username = user.Username,
+                    provider = user.Provider,
+                    sid = sessionId.ToString(),
+                    roles = new[] { "user" },
+                    scope = "trackify:read"
+                },
+                ttl = "15m"
             };
 
-            var token = new JwtSecurityToken(
-                issuer: issuer,
-                audience: audience,
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15),
-                signingCredentials: creds
-            );
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{issuerUrl}/v1/tokens:mint")
+            {
+                Content = JsonContent.Create(payload)
+            };
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            request.Headers.Add("x-admin-api-key", adminApiKey);
+
+            var response = await _http.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                throw new InvalidOperationException(
+                    $"Issuer token request failed. Status={response.StatusCode}, Error={error}");
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<AuthResponseDto>();
+            return result ?? throw new InvalidOperationException("Issuer did not return tokens.");
+        }
+
+
+        public async Task<AuthResponseDto> RefreshToken(string refreshToken)
+        {
+            var appId = _config["Issuer:AppId"];
+            var issuerBase = _config["Issuer:BaseUrl"];
+
+            var body = new
+            {
+                appId,
+                refresh_token = refreshToken
+            };
+
+            var res = await _http.PostAsJsonAsync($"{issuerBase}/v1/tokens:refresh", body);
+            res.EnsureSuccessStatusCode();
+
+            return await res.Content.ReadFromJsonAsync<AuthResponseDto>()
+                ?? throw new InvalidOperationException("Issuer returned no tokens.");
         }
     }
 }

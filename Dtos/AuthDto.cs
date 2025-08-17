@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Trackify.Api.Dtos
 {
     public class AuthDto
@@ -42,8 +44,12 @@ namespace Trackify.Api.Dtos
 
     public class AuthResponseDto
     {
+        [JsonPropertyName("access_token")]
         public string AccessToken { get; set; } = null!;
+        [JsonPropertyName("refresh_token")]
         public string RefreshToken { get; set; } = null!;
+        [JsonPropertyName("expires_in")]
+        public int ExpiresIn { get; set; }
         public Guid SessionId { get; set; }
         public UserDto User { get; set; } = null!;
     }

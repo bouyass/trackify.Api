@@ -32,7 +32,6 @@ namespace Trackify.Api.Endpoints
 
         public static void MapAuthEndpoints(this WebApplication app)
         {
-            string GenerateRefreshToken() => Convert.ToBase64String(Guid.NewGuid().ToByteArray());
 
             static UserDto ToUserDto(User user) =>
                 new()
@@ -43,15 +42,6 @@ namespace Trackify.Api.Endpoints
                     PictureUrl = user.PictureUrl,
                     Provider = user.Provider,
                     Locale = user.Locale
-                };
-
-            static AuthResponseDto CreateAuthResponse(User user, RefreshToken refreshToken, IJwtService jwt) =>
-                new()
-                {
-                    AccessToken = jwt.GenerateToken(user, refreshToken.Id),
-                    RefreshToken = refreshToken.Token,
-                    SessionId = refreshToken.Id,
-                    User = ToUserDto(user)
                 };
 
             app.MapGet("/auth/ping", (HttpContext http, ILogger<AuthLogCategory> logger) =>
@@ -110,14 +100,17 @@ namespace Trackify.Api.Endpoints
                         user.Email, http.TraceIdentifier);
                 }
 
-                var refreshToken = new RefreshToken
+                var session = new RefreshToken
                 {
-                    Token = GenerateRefreshToken(),
                     ExpiresAt = DateTime.UtcNow.AddDays(7),
                     User = user
                 };
 
-                context.RefreshTokens.Add(refreshToken);
+                AuthResponseDto tokens = await jwt.GenerateToken(user, session.Id);
+
+                session.Token = tokens.RefreshToken;
+
+                context.RefreshTokens.Add(session);
 
                 try
                 {
@@ -125,7 +118,7 @@ namespace Trackify.Api.Endpoints
                     logger.LogInformation(LogEvents.DbSave,
                         "Saved {EntityCount} entities. NewUser={IsNewUser}, UserId={UserId}, SessionId={SessionId}, TraceId={TraceId}",
                         context.ChangeTracker.Entries().Count(),
-                        isNewUser, user.Id, refreshToken.Id, http.TraceIdentifier);
+                        isNewUser, user.Id, session.Id, http.TraceIdentifier);
                 }
                 catch (Exception ex)
                 {
@@ -135,7 +128,21 @@ namespace Trackify.Api.Endpoints
                     return Results.Problem("Unable to complete sign-in.");
                 }
 
-                return Results.Ok(CreateAuthResponse(user, refreshToken, jwt));
+                return Results.Ok(new AuthResponseDto
+                {
+                    AccessToken = tokens.AccessToken,
+                    RefreshToken = tokens.RefreshToken,
+                    SessionId = session.Id,
+                    User = new UserDto
+                    {
+                        Id = user.Id,
+                        Email = user.Email,
+                        Username = user.Username,
+                        PictureUrl = user.PictureUrl,
+                        Provider = user.Provider,
+                        Locale = user.Locale
+                    }
+                });
             })
             .Produces<AuthResponseDto>(StatusCodes.Status200OK)
             .Produces<ErrorResponseDto>(StatusCodes.Status400BadRequest);
@@ -174,18 +181,20 @@ namespace Trackify.Api.Endpoints
 
                 context.Users.Add(user);
 
-                RefreshToken refreshToken;
+                RefreshToken session = new RefreshToken
+                {
+                    ExpiresAt = DateTime.UtcNow.AddDays(7),
+                    User = user
+                };
+
+
+                AuthResponseDto tokens = await jwt.GenerateToken(user, session.Id);
+
+                session.Token = tokens.RefreshToken;
 
                 try
                 {
-                    refreshToken = new RefreshToken
-                    {
-                        Token = GenerateRefreshToken(),
-                        ExpiresAt = DateTime.UtcNow.AddDays(7),
-                        User = user
-                    };
-
-                    context.RefreshTokens.Add(refreshToken);
+                    context.RefreshTokens.Add(session);
                 }
                 catch (Exception ex)
                 {
@@ -199,7 +208,7 @@ namespace Trackify.Api.Endpoints
                     await context.SaveChangesAsync();
                     logger.LogInformation(LogEvents.DbSave,
                         "User registered. UserId={UserId}, SessionId={SessionId}, TraceId={TraceId}",
-                        user.Id, refreshToken.Id, http.TraceIdentifier);
+                        user.Id, session.Id, http.TraceIdentifier);
                 }
                 catch (Exception ex)
                 {
@@ -209,7 +218,22 @@ namespace Trackify.Api.Endpoints
                     return Results.Problem("Unable to complete registration.");
                 }
 
-                return Results.Ok(CreateAuthResponse(user, refreshToken, jwt));
+
+                return Results.Ok(new AuthResponseDto
+                {
+                    AccessToken = tokens.AccessToken,
+                    RefreshToken = tokens.RefreshToken,
+                    SessionId = session.Id,
+                    User = new UserDto
+                    {
+                        Id = user.Id,
+                        Email = user.Email,
+                        Username = user.Username,
+                        PictureUrl = user.PictureUrl,
+                        Provider = user.Provider,
+                        Locale = user.Locale
+                    }
+                });
             })
             .Produces<AuthResponseDto>(StatusCodes.Status200OK)
             .Produces<ErrorResponseDto>(StatusCodes.Status400BadRequest);
@@ -241,21 +265,24 @@ namespace Trackify.Api.Endpoints
                     });
                 }
 
-                var refreshToken = new RefreshToken
+                var session = new RefreshToken
                 {
-                    Token = GenerateRefreshToken(),
                     ExpiresAt = DateTime.UtcNow.AddDays(7),
                     User = user
                 };
 
-                context.RefreshTokens.Add(refreshToken);
+                AuthResponseDto tokens = await jwt.GenerateToken(user, session.Id);
+
+                session.Token = tokens.RefreshToken;
+
+                context.RefreshTokens.Add(session);
 
                 try
                 {
                     await context.SaveChangesAsync();
                     logger.LogInformation(LogEvents.DbSave,
                         "User logged in. UserId={UserId}, SessionId={SessionId}, TraceId={TraceId}",
-                        user.Id, refreshToken.Id, http.TraceIdentifier);
+                        user.Id, session.Id, http.TraceIdentifier);
                 }
                 catch (Exception ex)
                 {
@@ -265,7 +292,21 @@ namespace Trackify.Api.Endpoints
                     return Results.Problem("Unable to complete login.");
                 }
 
-                return Results.Ok(CreateAuthResponse(user, refreshToken, jwt));
+                return Results.Ok(new AuthResponseDto
+                {
+                    AccessToken = tokens.AccessToken,
+                    RefreshToken = tokens.RefreshToken,
+                    SessionId = session.Id,
+                    User = new UserDto
+                    {
+                        Id = user.Id,
+                        Email = user.Email,
+                        Username = user.Username,
+                        PictureUrl = user.PictureUrl,
+                        Provider = user.Provider,
+                        Locale = user.Locale
+                    }
+                });
             })
             .Produces<AuthResponseDto>(StatusCodes.Status200OK)
             .Produces<ErrorResponseDto>(StatusCodes.Status400BadRequest);
@@ -299,21 +340,19 @@ namespace Trackify.Api.Endpoints
 
                 oldToken.IsRevoked = true;
 
-                var newToken = new RefreshToken
+
+                RefreshToken session = new RefreshToken
                 {
-                    Token = GenerateRefreshToken(),
                     ExpiresAt = DateTime.UtcNow.AddDays(7),
                     User = oldToken.User
                 };
-
-                context.RefreshTokens.Add(newToken);
 
                 try
                 {
                     await context.SaveChangesAsync();
                     logger.LogInformation(LogEvents.DbSave,
                         "Refreshed session. UserId={UserId}, OldSessionId={OldSessionId}, NewSessionId={NewSessionId}, TraceId={TraceId}",
-                        oldToken.User.Id, oldToken.Id, newToken.Id, http.TraceIdentifier);
+                        oldToken.User.Id, oldToken.Id, session.Id, http.TraceIdentifier);
                 }
                 catch (Exception ex)
                 {
@@ -323,7 +362,30 @@ namespace Trackify.Api.Endpoints
                     return Results.Problem("Unable to refresh session.");
                 }
 
-                return Results.Ok(CreateAuthResponse(oldToken.User, newToken, jwt));
+                AuthResponseDto tokens = await jwt.RefreshToken(oldToken.Token);
+
+                session.Token = tokens.RefreshToken;
+
+                context.RefreshTokens.Add(session);
+
+                await context.SaveChangesAsync();
+
+
+                return Results.Ok(new AuthResponseDto
+                {
+                    AccessToken = tokens.AccessToken,
+                    RefreshToken = tokens.RefreshToken,
+                    SessionId = session.Id,
+                    User = new UserDto
+                    {
+                        Id = oldToken.User.Id,
+                        Email = oldToken.User.Email,
+                        Username = oldToken.User.Username,
+                        PictureUrl = oldToken.User.PictureUrl,
+                        Provider = oldToken.User.Provider,
+                        Locale = oldToken.User.Locale
+                    }
+                });
             })
             .Produces<AuthResponseDto>(StatusCodes.Status200OK)
             .Produces<ErrorResponseDto>(StatusCodes.Status400BadRequest);
