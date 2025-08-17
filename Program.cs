@@ -46,27 +46,6 @@ builder.Services.AddScoped<BooksSearchService>();
 builder.Services.AddScoped<MusicSearchService>();
 builder.Services.AddScoped<GameCompanySearchService>();
 
-
-
-builder.Services.AddAuthentication()
-    .AddJwtBearer(options =>
-    {
-        var keyString = builder.Configuration["Jwt:Secret"] ?? builder.Configuration["JwtKey"];
-        var issuer = builder.Configuration["Jwt:Issuer"] ?? builder.Configuration["JwtIssuer"];
-        var audience = builder.Configuration["Jwt:Audience"] ?? builder.Configuration["JwtAudience"];
-
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = issuer,
-            ValidAudience = audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString))
-        };
-    });
-
 builder.Services.AddAuthorization();
 
 builder.Services.AddMemoryCache();
@@ -87,9 +66,6 @@ if (app.Environment.IsDevelopment())
 // Your middleware must run before authorization
 app.UseMiddleware<JwtValidationMiddleware>();
 
-
-app.UseAuthentication();
-app.UseAuthorization();
 
 app.MapGet("/", () => "API Notifications en ligne !");
 
